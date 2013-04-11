@@ -8,6 +8,7 @@ class DbiOutput < BufferedOutput
   config_param :db_user, :string
   config_param :db_pass, :string
   config_param :query, :string
+  config_param :time_format, :string, default: nil
 
   def initialize
     super
@@ -19,6 +20,7 @@ class DbiOutput < BufferedOutput
     super
 
     @keys = @keys.split(",")
+    @timef = TimeFormatter.new(@time_format, localtime = true)
   end
 
   def format(tag, time, record)
@@ -31,7 +33,11 @@ class DbiOutput < BufferedOutput
       dbh['AutoCommit'] = false
       sth = dbh.prepare(@query)
       chunk.msgpack_each { |tag, time, record|
-        record.key?('time') || record['time'] = time
+        if @time_format
+          record['time'] = @timef.format(time)
+        else
+          record.key?('time') || record['time'] = time
+        end
         record.key('tag') || record['tag'] = tag
         values = []
         @keys.each { |key|
